@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "howlurl",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-23",
+  "assets": { "directory": "./dist" },
+  "observability": { "enabled": true },
+
+  // BASE_DOMAIN is public configuration, not a secret: it is the suffix printed
+  // in every generated name. The app itself is served from howlurl.mrdemonwolf.com,
+  // a different zone, so it cannot collide with the *.mrdemonwolf.dev wildcard.
+  "vars": {
+    "BASE_DOMAIN": "mrdemonwolf.dev",
+    "APP_TITLE": "HowlURL"
+  }
+
+  // Custom domain is added only after the first workers.dev deploy is verified:
+  // "routes": [{ "pattern": "howlurl.mrdemonwolf.com", "custom_domain": true }]
+}
