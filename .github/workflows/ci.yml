@@ -3,21 +3,52 @@ name: CI
 on:
   push:
     branches: [main]
+  # Every pull request, whatever it targets. Deliberately NOT `branches: [main]`:
+  # that filter is on the BASE branch, so a stacked PR (one opened against
+  # another PR's branch) would match nothing and silently run no checks.
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
+    name: Type-check, test, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          bun-version: latest
-      - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run test
-      - run: bun run build
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Cache bun dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: Type-check
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test
+
+      - name: Build
+        # The footer links the commit this build came from.
         env:
           GITHUB_SHA: ${{ github.sha }}
-      # Validates wrangler.jsonc and the bundle without touching Cloudflare.
-      - run: bunx wrangler deploy --dry-run
+        run: bun run build
+
+      # Validates wrangler.jsonc and the Worker bundle without touching
+      # Cloudflare, so no API token is needed for a pull request.
+      - name: Dry-run deploy
+        run: bunx wrangler deploy --dry-run
