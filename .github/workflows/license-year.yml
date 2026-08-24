@@ -1,0 +1,54 @@
+name: Copyright Year
+
+on:
+  schedule:
+    # January 1st at 12:00 AM CST (06:00 UTC)
+    - cron: '0 6 1 1 *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  update-year:
+    # A fork has no reason to open this PR against itself every January.
+    if: github.repository == 'MrDemonWolf/howlurl'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Unlike WolfWave, LICENSE *is* the file to edit here: the MIT text puts
+      # the copyright line in the license itself, and it is HowlURL's own notice
+      # rather than a third party's. Nothing else in the repo carries a year.
+      - name: Update copyright year
+        run: |
+          CURRENT_YEAR=$(date +%Y)
+          echo "CURRENT_YEAR=$CURRENT_YEAR" >> "$GITHUB_ENV"
+
+          sed -i "s/^Copyright (c) [0-9]\{4\} /Copyright (c) $CURRENT_YEAR /" LICENSE
+
+          # Fail loudly rather than opening an empty PR: if the line ever moves
+          # or changes shape, a silent no-op would leave a stale year in the
+          # license and in the GitHub sidebar.
+          if ! grep -q "^Copyright (c) $CURRENT_YEAR " LICENSE; then
+            echo "::error file=LICENSE::No 'Copyright (c) $CURRENT_YEAR' after substitution. The copyright line moved or changed shape; update this workflow."
+            exit 1
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          commit-message: "chore: update copyright year to ${{ env.CURRENT_YEAR }}"
+          title: "chore: update copyright year to ${{ env.CURRENT_YEAR }}"
+          body: |
+            Automated annual update of HowlURL's copyright year in `LICENSE`.
+
+            The MIT text carries the notice inline, so unlike the GPLv3 repos
+            this is the project's own line to update rather than a third
+            party's.
+          branch: chore/update-copyright-year
+          delete-branch: true
